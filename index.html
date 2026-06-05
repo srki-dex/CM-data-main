@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>CYRILLIC MATRIX WALL</title>
+
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    background: black;
+    overflow: hidden;
+}
+canvas {
+    display: block;
+}
+</style>
+</head>
+
+<body>
+<canvas id="matrix"></canvas>
+
+<script>
+// ===============================
+// NW.js MULTI-SCREEN SYNC WALL
+// ===============================
+const gui = nw;
+const Screen = gui.Screen;
+Screen.Init();
+
+const win = nw.Window.get();
+const isMain = !win.window.opener;
+const screens = Screen.screens;
+
+// -------------------------------
+// Compute virtual canvas
+// -------------------------------
+let minX = Infinity, minY = Infinity;
+let maxX = -Infinity, maxY = -Infinity;
+
+screens.forEach(s => {
+    minX = Math.min(minX, s.bounds.x);
+    minY = Math.min(minY, s.bounds.y);
+    maxX = Math.max(maxX, s.bounds.x + s.bounds.width);
+    maxY = Math.max(maxY, s.bounds.y + s.bounds.height);
+});
+
+const V_WIDTH = maxX - minX;
+const V_HEIGHT = maxY - minY;
+
+// -------------------------------
+// SPAWN WINDOWS (FIXED)
+// -------------------------------
+if (isMain) {
+    const url = location.href; // ✅ critical fix
+
+    screens.forEach((s, i) => {
+        if (i === 0) return;
+
+        nw.Window.open(url, {
+            x: s.bounds.x,
+            y: s.bounds.y,
+            width: s.bounds.width,
+            height: s.bounds.height,
+            frame: false,
+            fullscreen: true
+        });
+    });
+}
+
+// Fullscreen all
+win.enterFullscreen();
+
+// ESC closes everything
+document.addEventListener("keydown", e => {
+    if (e.key === "Escape") nw.App.quit();
+});
+
+// -------------------------------
+// GLOBAL SHARED STATE
+// -------------------------------
+if (!nw.global.matrix) {
+    nw.global.matrix = {
+        startTime: Date.now(),
+        seed: Math.random()
+    };
+}
+
+const GLOBAL = nw.global.matrix;
+
+// -------------------------------
+// FIND THIS SCREEN
+// -------------------------------
+let myScreen = screens.find(s =>
+    s.bounds.x === win.x && s.bounds.y === win.y
+);
+
+if (!myScreen) myScreen = screens[0];
+
+const offsetX = myScreen.bounds.x - minX;
+const offsetY = myScreen.bounds.y - minY;
+
+
+// ===============================
+// MATRIX RENDER
+// ===============================
+const canvas = document.getElementById("matrix");
+const ctx = canvas.getContext("2d");
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener("resize", resize);
+
+const chars = "АБВГДЂЕЖЗИЈКЛЉМНЊОПРСТЋУФХЦЧЏШабвгдђежзијклљмнњопрстћуфхцчџш";
+const fontSize = 20;
+const columns = Math.floor(V_WIDTH / fontSize);
+
+// deterministic random
+function rand(n) {
+    return Math.abs(Math.sin(n * 9999 + GLOBAL.seed));
+}
+
+function draw() {
+    const time = (Date.now() - GLOBAL.startTime) * 0.05;
+
+    ctx.fillStyle = "rgba(0,0,0,0.08)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.font = fontSize + "px monospace";
+
+    for (let i = 0; i < columns; i++) {
+        const globalX = i * fontSize;
+        const localX = globalX - offsetX;
+
+        if (localX < 0 || localX > canvas.width) continue;
+
+        const speed = 0.5 + rand(i) * 1.5;
+        const y = (time * speed * fontSize + rand(i) * V_HEIGHT) % V_HEIGHT;
+
+        const localY = y - offsetY;
+        if (localY < 0 || localY > canvas.height) continue;
+
+        const charIndex = Math.floor(rand(i + Math.floor(time)) * chars.length);
+        const char = chars[charIndex];
+
+        // Changed to RGBA format with 0.5 (50%) opacity
+        const colors = [
+            'rgba(198, 54, 60, 0.5)',   // Red (#C6363C)
+            'rgba(12, 64, 118, 0.5)',   // Blue (#0C4076)
+            'rgba(255, 255, 255, 0.5)'  // White (#FFFFFF)
+        ];
+        ctx.fillStyle = colors[Math.floor(rand(i) * colors.length)];
+
+        ctx.fillText(char, localX, localY);
+    }
+
+    requestAnimationFrame(draw);
+}
+
+draw();
+</script>
+</body>
+</html>

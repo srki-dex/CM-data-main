@@ -1,0 +1,12 @@
+{
+  "name": "srkidex-cyrillic-matrix",
+  "main": "CM-data-main/index.html",
+  "window": {
+    "frame": false,
+    "fullscreen": true,
+    "always_on_top": true,
+    "icon": "CM-data-main/logo.png",
+    "title": "Cyrillic Matrix Screensaver"
+  },
+  "permissions": ["screen"]
+}
